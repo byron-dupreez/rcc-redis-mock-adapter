@@ -8,7 +8,7 @@ const redis = require('../rcc-redis-mock-adapter');
 const host0 = redis.getDefaultHost();
 const port0 = redis.getDefaultPort();
 
-const host1 = '127.0.0.1';
+const host1 = 'localhost';
 const port1 = 6379;
 
 function addEventListeners(redisClient, desc, startMs, customOnError) {

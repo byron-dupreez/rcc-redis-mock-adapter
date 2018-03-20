@@ -27,6 +27,9 @@ exports.resolveHostAndPortFromMovedError = resolveHostAndPortFromMovedError;
  */
 function createClient(redisClientOptions) {
   const client = redis.createClient(redisClientOptions);
+  if (!client._options) {
+    client._options = redisClientOptions;
+  }
   adaptClient(client);
   return client;
 }
@@ -67,15 +70,14 @@ function adaptClient(client) {
      * @return {[string, string|number]} an array containing the host and port
      */
     client.resolveHostAndPort = function () {
-      const connectionOptions = this.connection_options;
-      return connectionOptions ? [connectionOptions.host, connectionOptions.port] :
-        this.options ? [this.options.host, this.options.port] : [DEFAULT_REDIS_HOST, DEFAULT_REDIS_PORT];
+      return this._options ? [this._options.host || DEFAULT_REDIS_HOST, this._options.port || DEFAULT_REDIS_PORT] :
+        [DEFAULT_REDIS_HOST, DEFAULT_REDIS_PORT];
     };
   }
 
   if (!client.getOptions) {
     client.getOptions = function () {
-      return this.options;
+      return this._options;
     };
   }
 

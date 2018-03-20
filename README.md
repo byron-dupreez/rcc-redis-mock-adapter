@@ -1,4 +1,4 @@
-# rcc-redis-mock-adapter v1.0.0
+# rcc-redis-mock-adapter v1.0.1
 Wraps and adapts the 'redis-mock' module and its RedisClient instances to be used with the 'redis-client-cache' module
 
 Main module:
