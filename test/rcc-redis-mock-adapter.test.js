@@ -5,8 +5,8 @@ const test = require('tape');
 // Get the redis adapter
 const redis = require('../rcc-redis-mock-adapter');
 
-const host0 = redis.getDefaultHost();
-const port0 = redis.getDefaultPort();
+const host0 = redis.defaultHost;
+const port0 = redis.defaultPort;
 
 const host1 = 'localhost';
 const port1 = 6379;

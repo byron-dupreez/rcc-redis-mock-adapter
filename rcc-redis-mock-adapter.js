@@ -4,11 +4,11 @@ const rccCore = require('rcc-core');
 
 const redis = require('redis-mock');
 
-const DEFAULT_REDIS_HOST = '127.0.0.1';
-const DEFAULT_REDIS_PORT = rccCore.DEFAULT_REDIS_PORT;
+const defaultHost = '127.0.0.1';
+const defaultPort = rccCore.DEFAULT_REDIS_PORT;
 
-exports.getDefaultHost = () => DEFAULT_REDIS_HOST;
-exports.getDefaultPort = () => DEFAULT_REDIS_PORT;
+exports.defaultHost = defaultHost;
+exports.defaultPort = defaultPort;
 
 exports.createClient = createClient;
 
@@ -70,8 +70,8 @@ function adaptClient(client) {
      * @return {[string, string|number]} an array containing the host and port
      */
     client.resolveHostAndPort = function () {
-      return this._options ? [this._options.host || DEFAULT_REDIS_HOST, this._options.port || DEFAULT_REDIS_PORT] :
-        [DEFAULT_REDIS_HOST, DEFAULT_REDIS_PORT];
+      return this._options ? [this._options.host || defaultHost, this._options.port || defaultPort] :
+        [defaultHost, defaultPort];
     };
   }
 
