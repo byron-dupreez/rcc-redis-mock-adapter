@@ -1,5 +1,9 @@
 ## Changes
 
+### 1.0.4
+- Added workaround for `redis-mock` module's `ping` function ONLY accepting a callback function as the first argument -
+  instead of also handling an optional ping response as a first argument
+
 ### 1.0.3
 - Replaced `getDefaultHost` function with `defaultHost` property
 - Replaced `getDefaultPort` function with `defaultPort` property

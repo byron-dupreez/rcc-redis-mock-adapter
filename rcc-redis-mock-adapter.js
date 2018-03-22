@@ -35,6 +35,27 @@ function createClient(redisClientOptions) {
 }
 
 function adaptClient(client) {
+  if (!client._ping) {
+    client._ping = client.ping; // backup original `ping` method
+    client.ping = function ping() {
+      const arg0 = arguments[0];
+      let result;
+      if (typeof arg0 === 'function') {
+        // Since first argument is a function, assume its the callback
+        result = this._ping.apply(this, arguments);
+      } else {
+        // Since first argument is NOT a function, assume its meant to be the "pong" response to bounce back
+        const n = arguments.length - 1;
+        let args = new Array(n);
+        for (let i = 1; i < n; ++i) {
+          args[i - 1] = arguments[i];
+        }
+        result = this._ping.apply(this, args);
+      }
+      return result;
+    };
+  }
+
   if (!client._end) {
     client._end = client.end; // backup original `end` method
     client.end = function end(flush) {
