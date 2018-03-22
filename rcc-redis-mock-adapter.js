@@ -45,8 +45,8 @@ function adaptClient(client) {
         result = this._ping.apply(this, arguments);
       } else {
         // Since first argument is NOT a function, assume its meant to be the "pong" response to bounce back
-        const n = arguments.length - 1;
-        let args = new Array(n);
+        const n = arguments.length;
+        let args = new Array(n - 1);
         for (let i = 1; i < n; ++i) {
           args[i - 1] = arguments[i];
         }

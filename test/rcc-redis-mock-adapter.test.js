@@ -9,7 +9,7 @@ const host0 = redis.defaultHost;
 const port0 = redis.defaultPort;
 
 const host1 = 'localhost';
-const port1 = 6379;
+const port1 = 9999;
 
 function addEventListeners(redisClient, desc, startMs, customOnError) {
   const [host, port] = redisClient.resolveHostAndPort();
@@ -71,9 +71,6 @@ test('redis-mock - createClient', t => {
 
   startMs = Date.now();
   const redisClient1 = redis.createClient({port: port0, host: host0});
-
-  console.log(`#### redisClient1 = ${JSON.stringify(redisClient1)}`);
-
   t.ok(redisClient1, `redisClient1 must exist`);
   t.notOk(redisClient1.isClosing(), `redisClient1 should not be closing yet`);
 
@@ -138,3 +135,49 @@ test('redis-mock - createClient', t => {
   });
 });
 
+test('redis-mock - ping', t => {
+  // Create a redis client using the redis adapter
+  const host = host0;
+  const port = port0;
+  let startMs = Date.now();
+  const redisClient = redis.createClient({host: host, port: port});
+  t.ok(redisClient, `redisClient must exist`);
+  t.notOk(redisClient.isClosing(), `redisClient should not be closing yet`);
+
+  let [h, p] = redisClient.resolveHostAndPort();
+  t.equal(h, host, `redisClient host must be ${host}`);
+  t.equal(p, port, `redisClient port must be ${port}`);
+
+  addEventListeners(redisClient, 0, startMs, err => {
+    t.pass(`Expected and got an error from redisClient (${err})`);
+    redisClient.end(true, () => {});
+    t.ok(redisClient.isClosing(), `redisClient should be closing now`);
+  });
+
+  // Ping with default "PONG" response
+  redisClient.ping((err, value) => {
+    if (err) {
+      t.pass(`Expected and got a ping error (${err}) - ${JSON.stringify(err)} - isMovedError? ${redisClient.getAdapter().isMovedError(err)}`);
+      redisClient.end(true);
+      t.ok(redisClient.isClosing(), `redisClient should be closing/closed`);
+      t.end();
+
+    } else {
+      // console.log(res);
+      let expectedValue = 'PONG';
+      t.equal(value, expectedValue, `ping response value 1 must be '${expectedValue}'`);
+      // Ping with explicit response
+      redisClient.ping('PRING', (err, value) => {
+        if (err) {
+          t.pass(`Expected and got a ping error (${err})`);
+        } else {
+          expectedValue = 'PONG'; // redis-mock ping does NOT support any other response
+          t.equal(value, expectedValue, `ping response value 2 must ONLY be '${expectedValue}'`);
+        }
+        redisClient.end(true);
+        t.ok(redisClient.isClosing(), `redisClient should be closing/closed`);
+        t.end();
+      });
+    }
+  });
+});
