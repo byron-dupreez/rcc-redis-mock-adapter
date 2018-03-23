@@ -19,6 +19,63 @@ exports.deleteClientFunction = deleteClientFunction;
 exports.isMovedError = isMovedError;
 exports.resolveHostAndPortFromMovedError = resolveHostAndPortFromMovedError;
 
+function fixRedisClientFunctions() {
+  const prototype = redis.RedisClient.prototype;
+
+  if (!prototype._ping) {
+    prototype._ping = prototype.ping; // backup original `ping` method
+    prototype.ping = pingFix;
+  }
+
+  if (!prototype._end) {
+    prototype._end = prototype.end; // backup original `end` method
+    prototype.end = function end(flush) {
+      const result = this._end.apply(this, arguments);
+      this.manuallyClosing = true; // simulate a "closing" flag
+      return result;
+    };
+  }
+}
+
+function adaptRedisClient() {
+  const prototype = redis.RedisClient.prototype;
+
+  if (!prototype.getAdapter) {
+    prototype.getAdapter = getAdapter;
+  }
+
+  if (!prototype.isClosing) {
+    prototype.isClosing = isClosing;
+  }
+
+  if (!prototype.resolveHostAndPort) {
+    prototype.resolveHostAndPort = resolveHostAndPort;
+  }
+
+  if (!prototype.getOptions) {
+    prototype.getOptions = getOptions;
+  }
+
+  if (!prototype.addEventListeners) {
+    prototype.addEventListeners = addEventListeners;
+  }
+
+  if (!prototype.getFunction) {
+    prototype.getFunction = getClientFunction;
+  }
+
+  if (!prototype.setFunction) {
+    prototype.setFunction = setClientFunction;
+  }
+
+  if (!prototype.deleteFunction) {
+    prototype.deleteFunction = deleteClientFunction;
+  }
+}
+
+fixRedisClientFunctions();
+adaptRedisClient();
+
 /**
  * Creates a new RedisClient instance.
  * @param {RedisClientOptions|undefined} [redisClientOptions] - the options to use to construct the new RedisClient
@@ -30,101 +87,7 @@ function createClient(redisClientOptions) {
   if (!client._options) {
     client._options = redisClientOptions;
   }
-  adaptClient(client);
   return client;
-}
-
-function adaptClient(client) {
-  if (!client._ping) {
-    client._ping = client.ping; // backup original `ping` method
-    client.ping = function ping() {
-      const arg0 = arguments[0];
-      let result;
-      if (typeof arg0 === 'function') {
-        // Since first argument is a function, assume its the callback
-        result = this._ping.apply(this, arguments);
-      } else {
-        // Since first argument is NOT a function, assume its meant to be the "pong" response to bounce back
-        const n = arguments.length;
-        let args = new Array(n - 1);
-        for (let i = 1; i < n; ++i) {
-          args[i - 1] = arguments[i];
-        }
-        result = this._ping.apply(this, args);
-      }
-      return result;
-    };
-  }
-
-  if (!client._end) {
-    client._end = client.end; // backup original `end` method
-    client.end = function end(flush) {
-      const result = this._end.apply(this, arguments);
-      this.manuallyClosing = true; // simulate a "closing" flag
-      return result;
-    };
-  }
-
-  if (!client.getAdapter) {
-    /**
-     * Returns true if this RedisClient instance's connection is closing or has closed.
-     * @return {boolean} true if closing or closed; false otherwise
-     */
-    client.getAdapter = function () {
-      return module.exports;
-    };
-  }
-
-  if (!client.isClosing) {
-    /**
-     * Returns true if this RedisClient instance's connection is closing or has closed.
-     * @return {boolean} true if closing or closed; false otherwise
-     */
-    client.isClosing = function () {
-      return this.manuallyClosing;
-    };
-  }
-
-  if (!client.resolveHostAndPort) {
-    /**
-     * Resolves the host & port of this RedisClient instance.
-     * @return {[string, string|number]} an array containing the host and port
-     */
-    client.resolveHostAndPort = function () {
-      return this._options ? [this._options.host || defaultHost, this._options.port || defaultPort] :
-        [defaultHost, defaultPort];
-    };
-  }
-
-  if (!client.getOptions) {
-    client.getOptions = function () {
-      return this._options;
-    };
-  }
-
-  if (!client.addEventListeners) {
-    client.addEventListeners = function (onConnect, onReady, onReconnecting, onError, onClientError, onEnd, onClose) {
-      if (typeof onConnect === 'function') this.on('connect', onConnect);
-      if (typeof onReady === 'function') this.on('ready', onReady);
-      if (typeof onReconnecting === 'function') this.on('reconnecting', onReconnecting);
-      if (typeof onError === 'function') this.on('error', onError);
-      if (typeof onClientError === 'function') this.on('clientError', onClientError);
-      if (typeof onEnd === 'function') this.on('end', onEnd);
-      if (typeof onClose === 'function') this.on('close', onClose);
-    }
-  }
-
-  if (!client.getFunction) {
-    client.getFunction = getClientFunction;
-  }
-
-  if (!client.setFunction) {
-    client.setFunction = setClientFunction;
-  }
-
-  if (!client.deleteFunction) {
-    client.deleteFunction = deleteClientFunction;
-  }
 }
 
 function getClientFunction(fnName) {
@@ -162,4 +125,62 @@ function resolveHostAndPortFromMovedError(movedError) {
     return movedError.message.substring(movedError.message.lastIndexOf(' ') + 1).split(':');
   }
   throw new Error(`Unexpected redis mock client "moved" ReplyError - ${movedError}`);
+}
+
+function pingFix() {
+  const arg0 = arguments[0];
+  let result;
+  if (typeof arg0 === 'function') {
+    // Since first argument is a function, assume its the callback
+    result = this._ping.apply(this, arguments);
+  } else {
+    // Since first argument is NOT a function, assume its meant to be the "pong" response to bounce back and drop it
+    const n = arguments.length;
+    let args = new Array(n - 1);
+    for (let i = 1; i < n; ++i) {
+      args[i - 1] = arguments[i];
+    }
+    // Call original ping without the pong response first argument to avoid it breaking
+    result = this._ping.apply(this, args);
+  }
+  return result;
+}
+
+/**
+ * Returns true if this RedisClient instance's connection is closing or has closed.
+ * @return {boolean} true if closing or closed; false otherwise
+ */
+function getAdapter() {
+  return module.exports;
+}
+
+function getOptions() {
+  return this._options;
+}
+
+/**
+ * Returns true if this RedisClient instance's connection is closing or has closed.
+ * @return {boolean} true if closing or closed; false otherwise
+ */
+function isClosing() {
+  return this.manuallyClosing;
+}
+
+/**
+ * Resolves the host & port of this RedisClient instance.
+ * @return {[string, string|number]} an array containing the host and port
+ */
+function resolveHostAndPort() {
+  return this._options ? [this._options.host || defaultHost, this._options.port || defaultPort] :
+    [defaultHost, defaultPort];
+}
+
+function addEventListeners(onConnect, onReady, onReconnecting, onError, onClientError, onEnd, onClose) {
+  if (typeof onConnect === 'function') this.on('connect', onConnect);
+  if (typeof onReady === 'function') this.on('ready', onReady);
+  if (typeof onReconnecting === 'function') this.on('reconnecting', onReconnecting);
+  if (typeof onError === 'function') this.on('error', onError);
+  if (typeof onClientError === 'function') this.on('clientError', onClientError);
+  if (typeof onEnd === 'function') this.on('end', onEnd);
+  if (typeof onClose === 'function') this.on('close', onClose);
 }
