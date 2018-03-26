@@ -3,6 +3,11 @@
 const rccCore = require('rcc-core');
 
 const redis = require('redis-mock');
+const ReplyError = require('redis').ReplyError;
+exports.ReplyError = ReplyError;
+
+const adaptee = 'redis-mock';
+exports.adaptee = adaptee;
 
 const defaultHost = '127.0.0.1';
 const defaultPort = rccCore.DEFAULT_REDIS_PORT;
@@ -24,16 +29,26 @@ function fixRedisClientFunctions() {
 
   if (!prototype._ping) {
     prototype._ping = prototype.ping; // backup original `ping` method
+    console.log('Fixed `ping` function on `redis-mock` client prototype');
     prototype.ping = pingFix;
+  }
+
+  // If client is missing a `ping` method then add a dummy one
+  if (!prototype.info) {
+    console.log('Added dummy implementation for missing `info` function to `redis-mock` client prototype');
+    prototype.info = createDummyFn('info');
+  }
+
+  // If client is missing an `exec` method then add a dummy one
+  if (!prototype.exec) {
+    console.log('Added dummy implementation for missing `exec` function to `redis-mock` client prototype');
+    prototype.exec = createDummyFn('exec');
   }
 
   if (!prototype._end) {
     prototype._end = prototype.end; // backup original `end` method
-    prototype.end = function end(flush) {
-      const result = this._end.apply(this, arguments);
-      this.manuallyClosing = true; // simulate a "closing" flag
-      return result;
-    };
+    console.log('Extended `end` function on `redis-mock` client prototype via `endAndMarkAsClosing` function');
+    prototype.end = endAndMarkAsClosing;
   }
 }
 
@@ -44,16 +59,16 @@ function adaptRedisClient() {
     prototype.getAdapter = getAdapter;
   }
 
+  if (!prototype.getOptions) {
+    prototype.getOptions = getOptions;
+  }
+
   if (!prototype.isClosing) {
     prototype.isClosing = isClosing;
   }
 
   if (!prototype.resolveHostAndPort) {
     prototype.resolveHostAndPort = resolveHostAndPort;
-  }
-
-  if (!prototype.getOptions) {
-    prototype.getOptions = getOptions;
   }
 
   if (!prototype.addEventListeners) {
@@ -146,6 +161,26 @@ function pingFix() {
   return result;
 }
 
+function createDummyFn(fnName) {
+
+  function dummyFn() {
+    console.log(`Simulating dummy '${fnName}' function on the redis-mock client prototype`);
+    const n = arguments.length;
+    const callback = n > 0 ? arguments[n - 1] : undefined;
+    if (typeof callback === 'function') {
+      callback(null, undefined);
+    }
+  }
+
+  return dummyFn;
+}
+
+function endAndMarkAsClosing(flush) {
+  const result = this._end.apply(this, arguments);
+  this.manuallyClosing = true; // simulate a "closing" flag
+  return result;
+}
+
 /**
  * Returns true if this RedisClient instance's connection is closing or has closed.
  * @return {boolean} true if closing or closed; false otherwise
@@ -154,6 +189,10 @@ function getAdapter() {
   return module.exports;
 }
 
+/**
+ * Returns the options with which this RedisClient instance was constructed.
+ * @returns {RedisClientOptions} the options used
+ */
 function getOptions() {
   return this._options;
 }
@@ -168,7 +207,7 @@ function isClosing() {
 
 /**
  * Resolves the host & port of this RedisClient instance.
- * @return {[string, string|number]} an array containing the host and port
+ * @return {[string, number|string]} an array containing the host and port
  */
 function resolveHostAndPort() {
   return this._options ? [this._options.host || defaultHost, this._options.port || defaultPort] :

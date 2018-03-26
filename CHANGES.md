@@ -1,5 +1,9 @@
 ## Changes
 
+### 1.0.7
+- Added dummy implementations for missing `info` and `exec` functions to `redis-mock` client prototype
+- Minor code cleanups
+
 ### 1.0.5
 - Moved all fixing of RedisClient functions and adaptation of the RedisClient prototype to happen at module load time 
   in order to fix sequencing bugs where promise-returning "Async" functions installed later by `redis-client-cache` were 
