@@ -1,5 +1,8 @@
 ## Changes
 
+### 1.0.8
+- Updated rcc-core dependency
+
 ### 1.0.7
 - Added dummy implementations for missing `info` and `exec` functions to `redis-mock` client prototype
 - Minor code cleanups
