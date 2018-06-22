@@ -1,6 +1,6 @@
 {
   "name": "rcc-redis-mock-adapter",
-  "version": "1.0.8",
+  "version": "1.0.10",
   "description": "Wraps and adapts the 'redis-mock' module & its Redis client instances to be used with the 'redis-client-cache' module",
   "author": "Byron du Preez",
   "license": "Apache-2.0",
@@ -13,11 +13,11 @@
   },
   "dependencies": {
     "redis": "2.8.0",
-    "redis-mock": "0.21.0",
-    "rcc-core": "1.0.8"
+    "redis-mock": "0.27.0",
+    "rcc-core": "1.0.10"
   },
   "devDependencies": {
-    "tape": "^4.9.0"
+    "tape": "^4.9.1"
   },
   "repository": "https://github.com/byron-dupreez/rcc-redis-mock-adapter"
 }
